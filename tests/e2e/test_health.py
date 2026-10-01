@@ -6,7 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.config import settings
 from src.main import app
-from src.shared.data import redis_client
+from src.shared.data.redis_client import redis_client
 from src.shared.data.database import database
 
 # The lifespan connects to PostgreSQL and Redis, so these tests need the same
