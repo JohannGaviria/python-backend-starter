@@ -1,5 +1,3 @@
-"""Unit tests for the application settings."""
-
 from typing import Any
 
 import pytest

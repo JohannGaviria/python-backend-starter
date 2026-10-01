@@ -1,6 +1,6 @@
 import pytest
 
-from src.shared.infrastructure.cache.redis_client import RedisClient
+from src.shared.data.redis_client import RedisClient
 
 pytestmark = pytest.mark.db
 

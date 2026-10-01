@@ -182,7 +182,7 @@ The API will be available at `http://localhost:8000`. The interactive documentat
 
 ### Running the Environment with Docker
 
-Docker compose starts all the required services simultaneously: the API, PostgreSQL, Redis, etc.
+Docker Compose starts all the required services simultaneously: the API, PostgreSQL, Redis, etc.
 
 **Requirements:**
 - [Docker](https://www.docker.com/), or Docker Engine + Compose plugin

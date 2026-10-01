@@ -1,14 +1,3 @@
-"""Unit tests for the structlog configuration.
-
-`configure()` mutates process-wide logging state, so every test here restores
-the root logger, the silenced loggers and the structlog configuration.
-
-The rendering tests do not swap `sys.stdout`: pytest's global capture reinstalls
-its own stream and the swap is silently lost. Instead a buffer is attached to
-the root logger with the very formatter `configure()` installed, so what the
-tests read is the real rendering chain.
-"""
-
 import io
 import json
 import logging

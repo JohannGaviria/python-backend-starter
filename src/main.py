@@ -7,17 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.config import settings
-from src.shared.infrastructure.cache.redis_client import redis_client
+from src.shared.api.exceptions.exception_handlers import exception_handlers
+from src.shared.api.middleware.correlation_id_middleware import (
+    CorrelationIdMiddleware,
+)
+from src.shared.api.schemas.response_schema import SuccessResponseSchema
+from src.shared.data.database import database
+from src.shared.data.redis_client import redis_client
 from src.shared.infrastructure.logging.structlog_configure_logging import (
     StructlogConfigureLogging,
 )
 from src.shared.infrastructure.logging.structlog_logger import StructlogLogger
-from src.shared.infrastructure.persistence.database.database import db
-from src.shared.presentation.exceptions.exception_handlers import exception_handlers
-from src.shared.presentation.middleware.correlation_id_middleware import (
-    CorrelationIdMiddleware,
-)
-from src.shared.presentation.schemas.schema import SuccessResponseSchema
 
 _logger = StructlogLogger(__name__)
 
@@ -54,14 +54,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # whatever was already opened. Both `disconnect()` methods are idempotent, so
     # calling them for a dependency that never connected is a no-op.
     try:
-        db.connect()
+        database.connect()
         redis_client.connect()
 
         yield
     finally:
         # Shutdown: close database and Redis connections once per process.
         await redis_client.disconnect()
-        await db.disconnect()
+        await database.disconnect()
 
 
 app = FastAPI(
@@ -171,13 +171,13 @@ async def readiness_check() -> JSONResponse:
         JSONResponse: A 200 response when both dependencies answer, a 503
             otherwise, with the per-dependency detail in the payload.
     """
-    db_status = await _is_reachable(db.ping)
+    database_status = await _is_reachable(database.ping)
     redis_status = await _is_reachable(redis_client.ping)
-    is_ready = db_status and redis_status
+    is_ready = database_status and redis_status
 
     payload = {
         "status": "ready" if is_ready else "not_ready",
-        "database": db_status,
+        "database": database_status,
         "redis": redis_status,
     }
 

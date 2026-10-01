@@ -1,5 +1,3 @@
-"""End-to-end tests that exercise the application over HTTP."""
-
 from collections.abc import AsyncIterator
 
 import pytest
@@ -8,8 +6,8 @@ from httpx import ASGITransport, AsyncClient
 
 from src.config import settings
 from src.main import app
-from src.shared.infrastructure.cache.redis_client import redis_client
-from src.shared.infrastructure.persistence.database.database import db
+from src.shared.data import redis_client
+from src.shared.data.database import database
 
 # The lifespan connects to PostgreSQL and Redis, so these tests need the same
 # infrastructure as the integration suite. The root conftest skips them when it
@@ -74,7 +72,7 @@ class TestLiveness:
         async def failing_ping() -> bool:
             raise ConnectionError("everything is down")
 
-        monkeypatch.setattr(db, "ping", failing_ping)
+        monkeypatch.setattr(database, "ping", failing_ping)
         monkeypatch.setattr(redis_client, "ping", failing_ping)
 
         response = await client.get("/health")
@@ -106,7 +104,7 @@ class TestReadiness:
         async def failing_ping() -> bool:
             raise ConnectionError("postgres is down")
 
-        monkeypatch.setattr(db, "ping", failing_ping)
+        monkeypatch.setattr(database, "ping", failing_ping)
 
         response = await client.get("/health/ready")
 

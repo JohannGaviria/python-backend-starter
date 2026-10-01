@@ -93,4 +93,4 @@ class Database:
         return self._sessionmaker
 
 
-db = Database()
+database = Database()

@@ -1,8 +1,12 @@
-"""Shared pytest configuration for the whole suite."""
-
 import pytest
+from faker import Faker
 
 from tests.helpers import unreachable_services
+
+
+@pytest.fixture
+def faker() -> Faker:
+    return Faker()
 
 
 def pytest_collection_modifyitems(

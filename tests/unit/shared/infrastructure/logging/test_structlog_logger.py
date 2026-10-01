@@ -1,5 +1,3 @@
-"""Unit tests for the StructlogLogger wrapper."""
-
 from typing import Any
 from unittest.mock import MagicMock
 

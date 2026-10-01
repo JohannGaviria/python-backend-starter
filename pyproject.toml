@@ -172,9 +172,6 @@ disallow_untyped_calls = false
 ignore_missing_imports = false
 
 exclude = [
-    # Auto-generated revision files. The real path is
-    # src/shared/infrastructure/persistence/database/alembic/versions/, so the
-    # pattern has to match the full path and not just the folder name.
     "^src/.*/alembic/versions/",
 ]
 
