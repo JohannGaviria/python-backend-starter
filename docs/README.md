@@ -18,6 +18,7 @@ One-liner: what the project does and who it is for / what problem it solves.
     - [Group 1, e.g: Authentication](#group-1-eg-authentication)
     - [Group 2](#group-2)
 - [Testing](#testing)
+- [DevOps](#devops)
 - [Future Improvements](#future-improvements)
 - [License](#license)
 
@@ -221,6 +222,44 @@ The integration and E2E tests require the infrastructure services to be running;
 | Coverage    | `make test-coverage`          | `docker compose --profile test run --rm backend-test pytest tests --cov=src --cov-report=term-missing --cov-fail-under=70` |
 
 For the testing strategy, test structure, coverage target and the full list of commands, see [TEST_STRATEGY.md](TEST_STRATEGY.md).
+
+---
+
+---
+
+## DevOps
+
+The delivery flow is the same for every project built from this template:
+
+```text
+Local development -> Pull request -> CI -> Merge to main -> Release (vX.Y.Z)
+                                                               |
+                                                               v
+                                                Docker image (Build and Publish)
+                                                               |
+                                                               v
+                                                  Railway (Deploy Image)
+                                                               |
+                                                               v
+                                                        Health Check
+```
+
+| Environment | Where it runs                               | Configuration              | URL                     |
+|-------------|---------------------------------------------|----------------------------|-------------------------|
+| Development | Local Docker Compose (`dev` profile)        | `.env`                     | `http://localhost:8000` |
+| Test        | Local Docker Compose (`test` profile) or CI | `.env` plus test overrides | Not published           |
+| Production  | Railway (published Docker Hub image)        | Railway service variables  | `<PRODUCTION_URL>`      |
+
+The delivery pipelines are responsible for the following:
+
+- `ci.yml`: validates every change through linting, unit, integration and E2E tests, and coverage.
+- `release.yml`: creates the semantic version, changelog and Git tag.
+- `publish-image.yml`: builds the production Docker image, publishes it to Docker Hub and scans it with Trivy.
+- `cd.yml`: configures the Railway service to use the published Docker image, triggers the deployment and checks readiness.
+
+The Release Pipeline is opt-in, and the CD Pipeline skips pre-release tags. Railway deploys the exact image published by the Docker pipeline; it does not rebuild the application from source.
+
+For the complete delivery flow, pipeline configuration, required variables and tokens, and instructions for adapting the template to a new project, see [DEVOPS.md](docs/DEVOPS.md).
 
 ---
 

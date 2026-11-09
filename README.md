@@ -193,39 +193,15 @@ For the reasoning in more depth, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 ## API Endpoints
 
-| Method | Endpoint        | Description                                                                             |
-| ------ | --------------- | --------------------------------------------------------------------------------------- |
-| `GET`  | `/`             | Welcome message with the application name and version.                                  |
-| `GET`  | `/health`       | Liveness. Always 200 while the process serves; does not touch PostgreSQL or Redis.      |
+| Method | Endpoint        | Description                                                                              |
+|--------|-----------------|------------------------------------------------------------------------------------------|
+| `GET`  | `/`             | Welcome message with the application name and version.                                   |
+| `GET`  | `/health`       | Liveness. Always 200 while the process serves; does not touch PostgreSQL or Redis.       |
 | `GET`  | `/health/ready` | Readiness. 200 when both dependencies answer, 503 otherwise, with per-dependency detail. |
-| `GET`  | `/docs`         | Swagger UI.                                                                             |
+| `GET`  | `/docs`         | Swagger UI.                                                                              |
 | `GET`  | `/openapi.json` | OpenAPI schema.                                                                          |
 
 Every response carries an `X-Correlation-ID` header. Send your own and it is echoed back and attached to every log line of that request, which is what makes a request traceable across services.
-
-<details>
-<summary>Example responses</summary>
-
-`GET /`
-
-```json
-{
-  "status": "success",
-  "message": "Welcome to the Python Backend Starter, version 1.0.0!"
-}
-```
-
-`GET /health/ready` when a dependency is down
-
-```json
-{
-  "status": "success",
-  "message": "Readiness status: not_ready",
-  "data": { "status": "not_ready", "database": true, "redis": false }
-}
-```
-
-</details>
 
 ---
 
@@ -242,14 +218,14 @@ tests/
 
 Tests that need infrastructure carry the `db` marker. On the host those hosts do not resolve, so instead of failing with a confusing `socket.gaierror`, the suite **skips** them with an actionable reason. Run them through Docker to actually exercise them.
 
-| Scope       | Command                    | Equivalent                                                                          |
-| ----------- | -------------------------- | ----------------------------------------------------------------------------------- |
-| All         | `make test`                | `docker compose --profile test run --rm backend-test pytest tests -v`               |
-| Unit        | `make test-unit`           | `poetry run pytest tests/unit -v`                                                   |
-| Integration | `make test-integration`    | `docker compose --profile test run --rm backend-test pytest tests/integration -v`   |
-| No DB       | `make test-integration-no-db` | `poetry run pytest tests/integration -m "not db" -v`                             |
-| E2E         | `make test-e2e`            | `docker compose --profile test run --rm backend-test pytest tests/e2e -v`           |
-| Coverage    | `make test-coverage`       | Full suite with `--cov=src` and a 70% threshold                                     |
+| Scope       | Command                       | Equivalent                                                                        |
+|-------------|-------------------------------|-----------------------------------------------------------------------------------|
+| All         | `make test`                   | `docker compose --profile test run --rm backend-test pytest tests -v`             |
+| Unit        | `make test-unit`              | `poetry run pytest tests/unit -v`                                                 |
+| Integration | `make test-integration`       | `docker compose --profile test run --rm backend-test pytest tests/integration -v` |
+| No DB       | `make test-integration-no-db` | `poetry run pytest tests/integration -m "not db" -v`                              |
+| E2E         | `make test-e2e`               | `docker compose --profile test run --rm backend-test pytest tests/e2e -v`         |
+| Coverage    | `make test-coverage`          | Full suite with `--cov=src` and a 70% threshold                                   |
 
 The coverage threshold is enforced at 70%. CI goes further: it collects unit, integration and E2E coverage **separately**, uploads them as artifacts, then combines them for a single report — so a line is not counted twice and the total reflects every test that ran.
 
@@ -272,13 +248,14 @@ For the full strategy, see [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md).
 
 ## CI/CD and Secrets
 
-Three workflows ship with the template. **None of them requires a secret to run the CI pipeline** — the most common question when adopting a template is which secrets to create, so here is the exact answer.
+Four workflows ship with the template. **None of them requires a secret to run the CI pipeline** — the most common question when adopting a template is which secrets to create, so here is the exact answer.
 
-| Workflow            | Trigger                          | Secrets required                                   |
-| ------------------- | -------------------------------- | -------------------------------------------------- |
-| `ci.yml`            | push / PR on `main` and `develop`, or manual | **None**                                  |
-| `release.yml`       | **Manual only** (opt-in)         | `RELEASE_TOKEN`                                    |
-| `publish-image.yml` | Push of a tag matching `v*`      | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`            |
+| Workflow            | Trigger                                         | Secrets required                                          |
+|---------------------|-------------------------------------------------|-----------------------------------------------------------|
+| `ci.yml`            | push / PR on `main` and `develop`, or manual    | **None**                                                  |
+| `release.yml`       | **Opt-in** (after CI on `main`)                 | `RELEASE_TOKEN`                                           |
+| `publish-image.yml` | Push of a tag matching `v*`                     | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`                   |
+| `cd.yml`            | After a successful image publication, or manual | `RAILWAY_TOKEN`, `RAILWAY_SERVICE`, `RAILWAY_ENVIRONMENT` |
 
 ### `ci.yml` — no secrets
 
@@ -290,7 +267,7 @@ A **Personal Access Token** used to check out the full history and to run semant
 
 > **Why a PAT instead of the built-in `GITHUB_TOKEN`:** GitHub does not start workflow runs from pushes made with the automatic token. Since `publish-image.yml` triggers on the `v*` tags that semantic-release creates, using `GITHUB_TOKEN` would break that chain and no image would ever be published. A PAT is what closes the loop.
 
-To create it: **Settings → Developer settings → Personal access tokens**. It needs write access to repository contents, and — if you keep the release-notes-as-PR flow — pull requests and issues as well. The permissions the workflow declares are `contents: write`, `pull-requests: write` and `issues: write`; grant the equivalent on the token.
+To create it: **Settings → Developer settings → Personal access tokens**. It needs write access to repository contents. The workflow declares `contents: write`, so grant the equivalent on the token.
 
 **The release workflow ships disabled on purpose.** A fresh clone has no `RELEASE_TOKEN`, so triggering it automatically on every push would only produce a red build. To enable it, set the secret and change the trigger in `.github/workflows/release.yml`:
 
@@ -302,7 +279,7 @@ on:
     branches: [main]
 ```
 
-That way a release is only attempted after CI has passed. Until then, run it by hand from the Actions tab.
+That way a release is only attempted after CI has passed. Until you enable it, the pipeline stays disabled; its job condition expects a successful CI run on `main`.
 
 ### `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` — Docker Hub
 
@@ -313,8 +290,28 @@ Used to log in and push the image built from the `production` target. The userna
 Behaviour worth knowing:
 
 - Tags follow the release tag: `v1.2.3` produces `:v1.2.3`.
+- The CD pipeline deploys exactly `<DOCKERHUB_USERNAME>/<repo-name>:<release-tag>`, not `:latest`.
 - A **pre-release** tag (anything containing a `-`, e.g. `v1.2.3-beta.1`) does **not** move `:latest`; a normal tag does.
 - The image is scanned with Trivy for `HIGH` and `CRITICAL` findings. The scan reports but does not fail the build (`exit-code: "0"`), so a new CVE surfaces in the log without blocking a release. Tighten that to `"1"` once you want it enforced.
+
+### `RAILWAY_API_TOKEN`, `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE` and `RAILWAY_ENVIRONMENT` — Railway
+
+Used by `cd.yml` to deploy the published Docker image to Railway. The job runs in the `production` GitHub Environment, skips pre-release tags, configures the Railway service to use the exact image published on Docker Hub (`<DOCKERHUB_USERNAME>/<repo-name>:<tag>`) with `railway service source connect`, triggers `railway redeploy --from-source` and polls `RAILWAY_HEALTHCHECK_URL` (a repository **variable**, not a secret) until it answers HTTP 200 or two minutes pass.
+
+- `RAILWAY_API_TOKEN`: create it as an **Account Token** in Railway account settings. It authenticates the Railway CLI and is not scoped to an individual project.
+- `RAILWAY_PROJECT_ID`: exact identifier of the Railway project. The workflow passes it explicitly through `--project` to identify the target project.
+- `RAILWAY_SERVICE`: exact service name or identifier from the Railway project dashboard.
+- `RAILWAY_ENVIRONMENT`: Railway environment name or identifier; defaults to `production`.
+- `RAILWAY_HEALTHCHECK_URL`: optional variable pointing at the readiness endpoint, for example `<PRODUCTION_URL>/health/ready`.
+- `DOCKERHUB_IMAGE`: GitHub variable containing the Docker Hub image repository, for example `<DOCKERHUB_USERNAME>/<repo-name>`. The workflow appends the release tag to construct the complete image reference.
+
+Notes:
+
+- The Account Token authenticates the CLI, while `RAILWAY_PROJECT_ID` identifies the project. Both are required for deployment.
+- The workflow does not need `railway link` because the project, service and environment are explicitly supplied to the CLI.
+- `railway service source connect` changes the service source at the service level. If the same service is shared with another Railway environment, that environment will also point at the new image and may trigger an extra deployment.
+- Railway must be able to pull the image. Public Docker Hub repositories work out of the box; private repositories require Docker Hub credentials configured in the Railway service.
+- The CD pipeline does not build or upload the application source code. It deploys the already published Docker image.
 
 ---
 
@@ -322,9 +319,9 @@ Behaviour worth knowing:
 
 ```
 .
-├── .github/workflows/     # ci.yml, release.yml, publish-image.yml
+├── .github/workflows/     # ci.yml, release.yml, publish-image.yml, cd.yml
 ├── alembic.ini            # Points at the Alembic directory under src/
-├── docs/                  # Architecture, test strategy, dev guide, requirements
+├── docs/                  # Architecture, test strategy, dev guide, requirements, DevOps
 ├── scripts/
 │   └── update_version.py  # Called by semantic-release to bump the version
 ├── src/                   # Application code (see Architecture)
